@@ -25,8 +25,7 @@ Lambda 함수가 실행할 메인 코드인 scripts 폴더 전체를 scripts.zip
 # ✅ 최종 결과물
 위 과정을 모두 마치면 프로젝트 루트 디렉토리에 다음과 같이 두 개의 배포용 zip 파일이 생성됩니다.
 
-python_layer.zip
-
-scripts.zip
+python.zip
+scripts/{files}.zip
 
 이제 이 파일들을 사용하여 AWS Lambda 함수와 Layer를 생성하거나 업데이트할 수 있습니다.
