@@ -1,5 +1,5 @@
 # requirement로 다운받은 python디렉토리
-/python
+python/
 
 #와일드 카드 zip파일
 *.zip
