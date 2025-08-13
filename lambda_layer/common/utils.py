@@ -18,9 +18,6 @@ def extract_arn_id(arn: str) -> str:
     arn_id = arn.split('/')[-1]
     return arn_id
 
-def read_s3_json():
-    return 0
-
 #DB 커넥션
 def db_connection():
     DB_USER = os.environ.get('DB_USER')
