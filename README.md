@@ -17,7 +17,8 @@ pip install -r requirements.txt --platform manylinux2014_x86_64 --implementation
 참고: 위 명령어를 실행하면 현재 디렉토리에 python 폴더가 생성되고, requirements.txt에 명시된 모든 패키지가 해당 폴더 내에 설치됩니다.
 
 ### 2. ZIP 파일로 압축
-설치가 완료된 python 폴더를 python.zip 파일로 압축합니다.
+- 생성된 python 폴더에 common 디렉토리를 넣어줍니다.
+- 설치가 완료된 python 폴더를 python.zip 파일로 압축합니다.
 
 # 📜 2. 실행 스크립트 준비 (scripts.zip)
 Lambda 함수가 실행할 메인 코드인 각 import 파일들을 zip파일로 압축 합니다.
