@@ -16,17 +16,17 @@ def lambda_handler(event, context) -> dict:
 
     try:
         s3_client = get_s3_client()
-        local_path, s3_path = etl_user(BASE_DIR)
+        local_path= etl_user(BASE_DIR)
         s3_client.upload_file(
-            local_path, BUCKET_NAME, s3_path
+            local_path, BUCKET_NAME, USER_URL
         )
-        upload_file.append(f"s3://{BUCKET_NAME}/{s3_path}")
+        upload_file.append(f"s3://{BUCKET_NAME}/{USER_URL}")
 
-        local_path, s3_path = etl_interaction(BASE_DIR)
+        local_path= etl_interaction(BASE_DIR)
         s3_client.upload_file(
-            local_path, BUCKET_NAME, s3_path
+            local_path, BUCKET_NAME, INTERACTION_URL
         )
-        upload_file.append(f"s3://{BUCKET_NAME}/{s3_path}")
+        upload_file.append(f"s3://{BUCKET_NAME}/{INTERACTION_URL}")
 
         return {
             "statusCode": 200,
@@ -69,11 +69,10 @@ def etl_user(base_dir) -> str:
         time = datetime.now().strftime("%Y%m%d_%H%M%S")
         local_path = os.path.join(base_dir, f"{time}_user_data.csv")
         df.to_csv(local_path, index = False)
-        s3_path = f"user/{time}user_data.csv"
     finally:
         conn.close()
 
-    return local_path, s3_path
+    return local_path
 
 def etl_interaction(base_dir) -> str:
     product_engine = db_connection("coubee_product")
@@ -99,8 +98,7 @@ def etl_interaction(base_dir) -> str:
         time = datetime.now().strftime("%Y%m%d_%H%M%S")
         local_path = os.path.join(base_dir, f"{time}_interaction_data.csv")
         df_sum.to_csv(local_path, index = False)
-        s3_path = f"interaction/{time}interaction_data.csv"
     finally:
         product_conn.close()
         order_conn.close()
-    return local_path, s3_path
+    return local_path
