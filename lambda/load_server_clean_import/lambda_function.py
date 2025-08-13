@@ -59,14 +59,14 @@ def etl_recommend(s3,bucket_name, file_key):
         ]
         #Postgresql DB 연결 설정
         engine = db_connection()
-        SCHEMA_NAME = "coubee_recommend"
+        SCHEMA_NAME = "coubee_product"
         with engine.connect() as conn:
             #테이블 스키마 정의
             if not conn.dialect.has_schema(conn, SCHEMA_NAME):
                 conn.execute(CreateSchema(SCHEMA_NAME))
                 conn.commit()
             metadata = MetaData()
-            recommendations_table = Table('recommend', metadata,
+            recommendations_table = Table('item_recommend', metadata,
                                                 Column('user_id', BIGINT, primary_key=True),
                                                 Column('recommend_items', Text),
                                                 schema=SCHEMA_NAME

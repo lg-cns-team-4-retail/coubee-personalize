@@ -1,13 +1,15 @@
 import pandas as pd
 import os
-import urllib.parse
+import urllib
 from datetime import datetime
+from sqlalchemy import create_engine
 from common.utils import get_s3_client
-from common.utils import db_connection
 
 #lambda entry point함수
 def lambda_handler(event, context) -> dict:
     BUCKET_NAME = os.environ.get('BUCKET_NAME')
+    USER_URL = os.environ.get('USER_URL')
+    INTERACTION_URL = os.environ.get('INTERACTION_URL')
     BASE_DIR = "/tmp"
 
     upload_file = []
@@ -18,7 +20,7 @@ def lambda_handler(event, context) -> dict:
         s3_client.upload_file(
             local_path, BUCKET_NAME, s3_path
         )
-        upload_file.append(f"s3://{s3_path}")
+        upload_file.append(f"s3://{BUCKET_NAME}/{s3_path}")
 
         local_path, s3_path = etl_interaction(BASE_DIR)
         s3_client.upload_file(
@@ -42,35 +44,63 @@ def lambda_handler(event, context) -> dict:
                 "message": str(e)
         }
         }
+def db_connection(DB_NAME: str):
+    DB_USER = os.environ.get('DB_USER')
+    DB_PASSWORD = os.environ.get('DB_PASSWORD')
+    DB_HOST = os.environ.get('DB_HOST')
+    DB_PORT = os.environ.get('DB_PORT')
+    try:
+        safe_password = urllib.parse.quote_plus(DB_PASSWORD)
+        db_uri = f"postgresql://{DB_USER}:{safe_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        engine = create_engine(db_uri)
+        return engine
+    except Exception as e:
+        print(f"DB 연결 중 오류 발생: {str(e)}")
+        raise
 
 def etl_user(base_dir) -> str:
-    engine = db_connection()
-
-    # TODO read_csv말고 sql_table읽어서 csv파일로 변경 후 저장해야됨
-    #df = pd.read_sql_table("user_info",engine, schema="coubee_user")
-    df = pd.read_csv("C:/final/coubee-etl/airflow-docker/user_dataset.csv", encoding='utf-8')#utf-8
-    df_selected = df.reset_index()[['USER_ID','AGE','GENDER']]
-
-    time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    local_path = os.path.join(base_dir, f"{time}_user_data.csv")
-    df_selected.to_csv(local_path, index = False)
-    
-    s3_path = f"user/{time}user_data.csv"
+    engine = db_connection("coubee_user")
+    conn = engine.raw_connection()
+    sql_query = 'SELECT user_id, age, gender FROM coubee_user.user_info'
+    try:
+        df = pd.read_sql_query(sql_query,conn)
+        new_columns = ['USER_ID', 'AGE', 'GENDER']
+        df.columns = new_columns
+        time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        local_path = os.path.join(base_dir, f"{time}_user_data.csv")
+        df.to_csv(local_path, index = False)
+        s3_path = f"user/{time}user_data.csv"
+    finally:
+        conn.close()
 
     return local_path, s3_path
 
 def etl_interaction(base_dir) -> str:
-    engine = db_connection()
+    product_engine = db_connection("coubee_product")
+    order_engine = db_connection("coubee_order")
 
-    # TODO read_csv말고 sql_table읽어서 csv파일로 변경 후 저장해야됨
-    #df = pd.read_sql_table("user_info",engine, schema="coubee_user")
-    df = pd.read_csv("C:/final/coubee-etl/airflow-docker/user_dataset.csv", encoding='utf-8')#utf-8
-    df_selected = df.reset_index()[['USER_ID', 'ITEM_ID', 'TIMESTAMP', 'EVENT_TYPE']]
+    product_conn = product_engine.raw_connection()
+    order_conn = order_engine.raw_connection()
 
-    time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    local_path = os.path.join(base_dir, f"{time}_interaction_data.csv")
-    df_selected.to_csv(local_path, index = False)
+    sql_view_query = "SELECT user_id, product_id, unix_timestamp, view as event_type FROM coubee_product.product_view_record"
+    sql_product_query = "select o.user_id, oi.product_id , o.unix_timestamp, oi.event_type from coubee_order.orders  as o " \
+    "inner join coubee_order.order_items as oi on o.order_id = oi.order_id where status = 'PAYED'"
+    try:
+        # sql 테이블 view와 product 데이터 프레임 생성
+        df_view = pd.read_sql_query(sql_view_query,product_conn)
+        df_purchase = pd.read_sql_query(sql_product_query, order_conn)
 
-    s3_path = f"interaction/{time}interaction_data.csv"
+        # Interaction 칼럼명 수정
+        df_sum = pd.concat([df_view, df_purchase], ignore_index=True)
+        new_columns = ['USER_ID', 'ITEM_ID' , 'TIMESTAMP', 'EVENT_TYPE']
+        df_sum.columns = new_columns
 
+        #csv파일로 저장
+        time = datetime.now().strftime("%Y%m%d_%H%M%S")
+        local_path = os.path.join(base_dir, f"{time}_interaction_data.csv")
+        df_sum.to_csv(local_path, index = False)
+        s3_path = f"interaction/{time}interaction_data.csv"
+    finally:
+        product_conn.close()
+        order_conn.close()
     return local_path, s3_path
