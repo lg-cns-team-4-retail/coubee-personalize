@@ -20,7 +20,7 @@ pip install -r requirements.txt --platform manylinux2014_x86_64 --implementation
 설치가 완료된 python 폴더를 python.zip 파일로 압축합니다.
 
 # 📜 2. 실행 스크립트 준비 (scripts.zip)
-Lambda 함수가 실행할 메인 코드인 scripts 폴더 전체를 scripts.zip 파일로 압축합니다.
+Lambda 함수가 실행할 메인 코드인 각 import 파일들을 zip파일로 압축 합니다.
 
 # ✅ 최종 결과물
 위 과정을 모두 마치면 프로젝트 루트 디렉토리에 다음과 같이 두 개의 배포용 zip 파일이 생성됩니다.
