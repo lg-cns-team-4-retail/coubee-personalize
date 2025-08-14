@@ -58,7 +58,8 @@ deploy_lambda () {
 }
 
 ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/your-lambda-role"
-
+deploy_lambda "s3-import-lambda" "$ROLE_ARN "./s3_import"\
+    
 deploy_lambda "dataset-import-lambda" "$ROLE_ARN" "./dataset_import" \
     "dataset-import-active" \
     '{
