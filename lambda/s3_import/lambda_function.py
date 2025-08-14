@@ -60,31 +60,38 @@ def db_connection(DB_NAME: str):
 
 def etl_user(base_dir) -> str:
     engine = db_connection("coubee_user")
-    conn = engine.raw_connection()
-    sql_query = 'SELECT user_id, age, gender FROM coubee_user.user_info'
+    conn = None
     try:
+        conn = engine.raw_connection()
+        sql_query = 'SELECT user_id, age, gender FROM coubee_user.user_info'
         df = pd.read_sql_query(sql_query,conn)
         new_columns = ['USER_ID', 'AGE', 'GENDER']
         df.columns = new_columns
         time = datetime.now().strftime("%Y%m%d_%H%M%S")
         local_path = os.path.join(base_dir, f"{time}_user_data.csv")
         df.to_csv(local_path, index = False)
+    except Exception as e:
+        print(f"DB 작업 중 에러 발생: {str(e)}")
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
     return local_path
 
 def etl_interaction(base_dir) -> str:
     product_engine = db_connection("coubee_product")
     order_engine = db_connection("coubee_order")
-
-    product_conn = product_engine.raw_connection()
-    order_conn = order_engine.raw_connection()
-
-    sql_view_query = "SELECT user_id, product_id, unix_timestamp, view as event_type FROM coubee_product.product_view_record"
-    sql_product_query = "select o.user_id, oi.product_id , o.unix_timestamp, oi.event_type from coubee_order.orders  as o " \
-    "inner join coubee_order.order_items as oi on o.order_id = oi.order_id where status = 'PAYED'"
+    product_conn = None
+    order_conn = None
     try:
+        product_conn = product_engine.raw_connection()
+        order_conn = order_engine.raw_connection()
+
+        sql_view_query = "SELECT user_id, product_id, unix_timestamp, view as event_type FROM coubee_product.product_view_record"
+
+        sql_product_query = "select o.user_id, oi.product_id , o.unix_timestamp, oi.event_type from coubee_order.orders  as o " \
+        "inner join coubee_order.order_items as oi on o.order_id = oi.order_id where status = 'RECEIVED'"
+
         # sql 테이블 view와 product 데이터 프레임 생성
         df_view = pd.read_sql_query(sql_view_query,product_conn)
         df_purchase = pd.read_sql_query(sql_product_query, order_conn)
@@ -98,7 +105,11 @@ def etl_interaction(base_dir) -> str:
         time = datetime.now().strftime("%Y%m%d_%H%M%S")
         local_path = os.path.join(base_dir, f"{time}_interaction_data.csv")
         df_sum.to_csv(local_path, index = False)
+    except Exception as e:
+        print(f"Interaction 작업 중 에러 발생: {str(e)}")
     finally:
-        product_conn.close()
-        order_conn.close()
+        if product_conn:
+            product_conn.close()
+        if order_conn:
+            order_conn.close()
     return local_path

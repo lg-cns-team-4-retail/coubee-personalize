@@ -1,22 +1,43 @@
 import os
 import time
+import pandas as pd
 from common.utils import get_personalize_client
 from common.utils import get_s3_client
+from common.utils import db_connection
 
 def lambda_handler(event,context) -> dict:
-    #TODO postgresql 테이블 연결 필요
-    # df = pd.read_sql_table("테이블 이름") 
-    # # 여기에서도 위의 etl_user 함수에서 해준 것처럼 동일한 type으로 전처리 해줘야합니다. 
-    # # 그 결과를 json 형태로 만들어서 S3에 업로드 해주어야 합니다.
-
-    #TODO input item data를 JSON형태로 만들어서 S3에 업로드 /batch_inference로 할 예정
-    # out = user_df.to_json(orient='records')[1:-1].replace('},{', '}\n{') 
-    # s3 = boto3.resource('s3') s3.Object('your destination', 'path/to/batch_input.json').put(Body=out)
-
+    #S3 환경변수
     ROLE_ARN = os.environ.get('ROLE_ARN')
     USER_JSON_S3 = os.environ.get('USER_JSON_S3')
     OUT_JSON_S3 = os.environ.get('OUT_JSON_S3')
+    BUCKET_NAME = os.environ.get('BUCKET_NAME')
 
+    #DB 커넥션
+    engine = db_connection()
+    conn = None
+    s3_client = None
+    try:
+        conn = engine.raw_connection()
+        sql_query = "select cu.id from coubee_user.coubee_user.coubee_user cu where cu.role = 'ROLE_USER'"
+        df = pd.read_sql_query(sql_query, conn)
+        df = df.rename(columns={'id': 'userId'})
+        df['userId'] = df['userId'].astype(str)
+
+        #Json lines 형식으로 변환 
+        json_input = df.to_json(orient='records',lines= True)
+        #S3 클라이언트 커넥션
+        s3_client = get_s3_client()
+        s3_client.put_object(
+        Bucket=BUCKET_NAME,
+        Key=USER_JSON_S3,
+        Body=json_input.encode('utf-8')  # 문자열을 바이트로 인코딩
+    )
+    except Exception as e:
+        print(f"유저 input 중 에러 발생: {str(e)}")
+    finally:
+        if conn:
+            conn.close()
+    #배치 추론
     personalize_client = get_personalize_client()
 
     # 가장 최근 DatasetGroup 찾기

@@ -31,7 +31,7 @@ def lambda_handler(event,context) -> dict:
        "body": "s3 import/db 저장 완료 및 celan-up 완료"
     }
 
-def etl_recommend(s3,bucket_name, file_key):
+def etl_recommend(s3,bucket_name, file_key) -> dict:
     recommendations_to_save = []
     response = s3.get_object(Bucket=bucket_name, Key=file_key)
     #  각 줄을 json line으로 변환시킴
@@ -70,7 +70,7 @@ def etl_recommend(s3,bucket_name, file_key):
                                                 Column('user_id', BIGINT, primary_key=True),
                                                 Column('recommend_items', Text),
                                                 schema=SCHEMA_NAME
-                                            )
+                                        )
             metadata.create_all(conn)
             # upsert 실행
             stmt = insert(recommendations_table)
