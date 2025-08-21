@@ -17,19 +17,20 @@ def lambda_handler(event, context) -> dict:
     try:
         s3_client = get_s3_client()
         local_path= etl_user(BASE_DIR)
+        local_file_name = os.path.basename(local_path)
         s3_client.upload_file(
-            local_path, BUCKET_NAME, USER_URL
+            local_path, BUCKET_NAME, f"{USER_URL}/{local_file_name}"
         )
-        upload_file.append(f"s3://{BUCKET_NAME}/{USER_URL}")
+        upload_file.append(f"s3://{BUCKET_NAME}/{USER_URL}/")
 
         local_path= etl_interaction(BASE_DIR)
+        local_file_name = os.path.basename(local_path)
         s3_client.upload_file(
-            local_path, BUCKET_NAME, INTERACTION_URL
+            local_path, BUCKET_NAME, f"{INTERACTION_URL}/{local_file_name}"
         )
-        upload_file.append(f"s3://{BUCKET_NAME}/{INTERACTION_URL}")
+        upload_file.append(f"s3://{BUCKET_NAME}/{INTERACTION_URL}/")
 
         return {
-            "statusCode": 200,
             "body": {
                 "message": "ETL 작업이 완료되었습니다.",
                 "uploadFile": upload_file
@@ -37,13 +38,8 @@ def lambda_handler(event, context) -> dict:
         }
     
     except Exception as e:
-        print(f"업로드 중 에러 발생: {e}")
-        return{
-            "statusCode": 500,
-            "body": {
-                "message": str(e)
-        }
-        }
+        raise Exception(f"업로드 중 에러 발생: {e}")
+    
 def db_connection(DB_NAME: str):
     DB_USER = os.environ.get('DB_USER')
     DB_PASSWORD = os.environ.get('DB_PASSWORD')
@@ -87,24 +83,34 @@ def etl_interaction(base_dir) -> str:
         product_conn = product_engine.raw_connection()
         order_conn = order_engine.raw_connection()
 
-        sql_view_query = "SELECT user_id, product_id, unix_timestamp, view as event_type FROM coubee_product.product_view_record"
+        sql_view_query = "SELECT user_id, product_id, unix_timestamp, count as event_type FROM coubee_product.product_view_record"
 
-        sql_product_query = "select o.user_id, oi.product_id , o.unix_timestamp, oi.event_type from coubee_order.orders  as o " \
-        "inner join coubee_order.order_items as oi on o.order_id = oi.order_id where status = 'RECEIVED'"
+        sql_product_query = "SELECT o.user_id, oi.product_id , o.paid_at_unix, oi.event_type FROM coubee_order.orders as o " \
+        "inner join coubee_order.order_items as oi on o.order_id = oi.order_id where o.status = 'RECEIVED'"
 
-        # sql 테이블 view와 product 데이터 프레임 생성
+        
+        #View 행동 데이터 수집 
         df_view = pd.read_sql_query(sql_view_query,product_conn)
+        #TODO view에서 바뀌면 그냥 삭제하거나 수정
+        df_view['event_type'] = df_view['event_type'].replace({1 : 'view'})
+
+        #Purchase 행동 데이터 수집
         df_purchase = pd.read_sql_query(sql_product_query, order_conn)
+
+        #view,purchase 행동 데이터 칼럼 명 변경 
+        new_columns = ['USER_ID', 'ITEM_ID' , 'TIMESTAMP', 'EVENT_TYPE']
+        df_view.columns = new_columns
+        df_purchase.columns = new_columns
 
         # Interaction 칼럼명 수정
         df_sum = pd.concat([df_view, df_purchase], ignore_index=True)
-        new_columns = ['USER_ID', 'ITEM_ID' , 'TIMESTAMP', 'EVENT_TYPE']
-        df_sum.columns = new_columns
+        # 합쳐진 interaction 데이터셋 timestamp기준으로 오름차순 정렬
+        df_sorted = df_sum.sort_values(by='TIMESTAMP', ascending=True)
 
         #csv파일로 저장
         time = datetime.now().strftime("%Y%m%d_%H%M%S")
         local_path = os.path.join(base_dir, f"{time}_interaction_data.csv")
-        df_sum.to_csv(local_path, index = False)
+        df_sorted.to_csv(local_path, index = False)
     except Exception as e:
         print(f"Interaction 작업 중 에러 발생: {str(e)}")
     finally:

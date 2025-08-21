@@ -23,17 +23,20 @@ def lambda_handler(event,context) -> dict:
         df = df.rename(columns={'id': 'userId'})
         df['userId'] = df['userId'].astype(str)
 
+        user_input_key = f"{USER_JSON_S3}/{int(time.time())}-user-input.json"
+        user_input_url = f"s3://{BUCKET_NAME}/{user_input_key}"
+
         #Json lines 형식으로 변환 
         json_input = df.to_json(orient='records',lines= True)
         #S3 클라이언트 커넥션
         s3_client = get_s3_client()
         s3_client.put_object(
         Bucket=BUCKET_NAME,
-        Key=USER_JSON_S3,
+        Key=user_input_key,
         Body=json_input.encode('utf-8')  # 문자열을 바이트로 인코딩
     )
     except Exception as e:
-        print(f"유저 input 중 에러 발생: {str(e)}")
+        raise Exception(f"유저 input 중 에러 발생: {str(e)}")
     finally:
         if conn:
             conn.close()
@@ -84,17 +87,13 @@ def lambda_handler(event,context) -> dict:
             solutionVersionArn=SV_ARN, 
             jobName=f"recommendation-batch-{int(time.time())}", 
             roleArn= ROLE_ARN, 
-            jobInput= {"s3DataSource": {"path": USER_JSON_S3}}, 
-            jobOutput= {"s3DataDestination": {"path": OUT_JSON_S3}}, 
+            jobInput= {"s3DataSource": {"path": user_input_url}}, 
+            jobOutput= {"s3DataDestination": {"path": f"s3://{BUCKET_NAME}/{OUT_JSON_S3}/"}}, 
             numResults=10, 
         )
     except Exception as e:
-        return{
-            "statusCode": 500,
-            "body": f"배치 추론 작업 생성 중 에러 발생: {e}"
-        }
+        raise Exception(f"배치 추론 작업 중 에러 발생: {str(e)}")
 
     return{
-        "statusCode": 200,
-        "body": "배치 추론 작업이 성공적으로 시작되었습니다."
+        "batchInferenceJobArn": response.get('batchInferenceJobArn')
     }
