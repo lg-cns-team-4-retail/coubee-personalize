@@ -23,12 +23,11 @@ def db_connection():
     DB_USER = os.environ.get('DB_USER')
     DB_PASSWORD = os.environ.get('DB_PASSWORD')
     DB_HOST = os.environ.get('DB_HOST')
-    DB_PORT = os.environ.get('DB_PORT')
     DB_NAME = os.environ.get('DB_NAME')
     # TODO: DB 커넥션
     try:
         safe_password = urllib.parse.quote_plus(DB_PASSWORD)
-        db_uri = f"postgresql://{DB_USER}:{safe_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+        db_uri = f"postgresql://{DB_USER}:{safe_password}@{DB_HOST}/{DB_NAME}"
         engine = create_engine(db_uri)
         return engine
     except Exception as e:
