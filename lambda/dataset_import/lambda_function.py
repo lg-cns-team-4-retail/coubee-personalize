@@ -29,7 +29,7 @@ def create_dataset(schema_dir, INTERACTION_S3_PATH, USER_S3_PATH, ROLE_ARN) -> d
     dtime = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     dataset_import_list = []
 
-    DSG_NAME = 'coubee-main5'
+    DSG_NAME = 'coubee-main2'
     dsg_arn = None
 
     # Dataset Group 생성

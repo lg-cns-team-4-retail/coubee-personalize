@@ -8,10 +8,18 @@ def lambda_handler(event,context) -> dict:
     
     #Solution 생성 시작
     solution_response = personalize_client.create_solution(
-        name="coubee-solution",
-        recipeArn="arn:aws:personalize:::recipe/aws-user-personalization-v2",
-        datasetGroupArn=dsg_arn,
-    )
+    name="coubee-solution",
+    recipeArn="arn:aws:personalize:::recipe/aws-user-personalization-v2",
+    datasetGroupArn=dsg_arn#,
+#     solutionConfig={
+#     "eventsConfig": {
+#         "eventParametersList": [
+#             {"eventType": "PURCHASE", "weight": 0.1},
+#             {"eventType": "VIEW", "weight": 0.4}
+#         ]
+#     }
+# }
+)
     solution_arn = solution_response['solutionArn']
     
     #Solution Version 생성 시작

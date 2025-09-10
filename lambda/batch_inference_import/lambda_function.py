@@ -18,7 +18,7 @@ def lambda_handler(event,context) -> dict:
     s3_client = None
     try:
         conn = engine.raw_connection()
-        sql_query = "select cu.id from coubee_user.coubee_user.coubee_user cu where cu.role = 'ROLE_USER'"
+        sql_query = "select cu.id from coubee_user.coubee_user as cu where cu.role = 'ROLE_USER'"
         df = pd.read_sql_query(sql_query, conn)
         df = df.rename(columns={'id': 'userId'})
         df['userId'] = df['userId'].astype(str)
@@ -87,9 +87,15 @@ def lambda_handler(event,context) -> dict:
             solutionVersionArn=SV_ARN, 
             jobName=f"recommendation-batch-{int(time.time())}", 
             roleArn= ROLE_ARN, 
+            numResults=10,
+            batchInferenceJobConfig={
+        "itemExplorationConfig": {
+            "explorationWeight": "0.10",
+            "explorationItemAgeCutOff": "30"
+        }
+    },
             jobInput= {"s3DataSource": {"path": user_input_url}}, 
-            jobOutput= {"s3DataDestination": {"path": f"s3://{BUCKET_NAME}/{OUT_JSON_S3}/"}}, 
-            numResults=10, 
+            jobOutput= {"s3DataDestination": {"path": f"s3://{BUCKET_NAME}/{OUT_JSON_S3}/"}}
         )
     except Exception as e:
         raise Exception(f"배치 추론 작업 중 에러 발생: {str(e)}")

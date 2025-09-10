@@ -83,16 +83,21 @@ def etl_interaction(base_dir) -> str:
         product_conn = product_engine.raw_connection()
         order_conn = order_engine.raw_connection()
 
-        sql_view_query = "SELECT user_id, product_id, unix_timestamp, count as event_type FROM coubee_product.product_view_record"
+        sql_view_query = "SELECT user_id, product_id, unix_timestamp, event_type FROM coubee_product.product_view_record where user_id > 0"
 
-        sql_product_query = "SELECT o.user_id, oi.product_id , o.paid_at_unix, oi.event_type FROM coubee_order.orders as o " \
-        "inner join coubee_order.order_items as oi on o.order_id = oi.order_id where o.status = 'RECEIVED'"
-
+        sql_product_query = """
+                    SELECT o.user_id, oi.product_id, o.paid_at_unix, oi.event_type
+                    FROM coubee_order.orders AS o
+                    INNER JOIN coubee_order.order_items AS oi 
+                        ON o.order_id = oi.order_id
+                    WHERE o.status NOT IN ('CANCELLED_ADMIN', 'CANCELLED_USER', 'PENDING')
+                    AND oi.event_type = 'PURCHASE'
+                    AND o.paid_at_unix >= 1756354800;
+        """
         
         #View 행동 데이터 수집 
         df_view = pd.read_sql_query(sql_view_query,product_conn)
-        #TODO view에서 바뀌면 그냥 삭제하거나 수정
-        df_view['event_type'] = df_view['event_type'].replace({1 : 'view'})
+        df_view['event_type']= df_view['event_type'].str.upper()
 
         #Purchase 행동 데이터 수집
         df_purchase = pd.read_sql_query(sql_product_query, order_conn)
