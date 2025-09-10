@@ -1,0 +1,251 @@
+{
+  "Comment": "Full Personalize Pipeline from ETL to Batch Inference and Clean-up",
+  "StartAt": "s3_import",
+  "States": {
+    "s3_import": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:ap-northeast-2:370519913328:function:s3_import"
+      },
+      "ResultPath": "$.EtlResult",
+      "Next": "dataset_import",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "ETLFailed"
+        }
+      ]
+    },
+    "dataset_import": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:ap-northeast-2:370519913328:function:dataset-import",
+        "Payload.$": "$.EtlResult.Payload"
+      },
+      "ResultPath": "$.PersonalizeResult",
+      "Next": "Wait_For_Import_Jobs_To_Complete",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "PersonalizeSetupFailed"
+        }
+      ]
+    },
+    "Wait_For_Import_Jobs_To_Complete": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "CheckInteractionJobStatus",
+          "States": {
+            "CheckInteractionJobStatus": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:personalize:describeDatasetImportJob",
+              "Parameters": {
+                "DatasetImportJobArn.$": "$.PersonalizeResult.Payload.interactionDatasetImportJobArn"
+              },
+              "ResultPath": "$.interactionJobDetails",
+              "Next": "IsInteractionJobActive"
+            },
+            "IsInteractionJobActive": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.interactionJobDetails.DatasetImportJob.Status",
+                  "StringEquals": "ACTIVE",
+                  "Next": "InteractionJobSucceeded"
+                },
+                {
+                  "Variable": "$.interactionJobDetails.DatasetImportJob.Status",
+                  "StringEquals": "CREATE FAILED",
+                  "Next": "InteractionJobFailed"
+                }
+              ],
+              "Default": "WaitInteraction"
+            },
+            "WaitInteraction": {
+              "Type": "Wait",
+              "Seconds": 60,
+              "Next": "CheckInteractionJobStatus"
+            },
+            "InteractionJobSucceeded": {
+              "Type": "Succeed"
+            },
+            "InteractionJobFailed": {
+              "Type": "Fail",
+              "Cause": "Interaction Import Job Failed"
+            }
+          }
+        },
+        {
+          "StartAt": "CheckUserJobStatus",
+          "States": {
+            "CheckUserJobStatus": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:personalize:describeDatasetImportJob",
+              "Parameters": {
+                "DatasetImportJobArn.$": "$.PersonalizeResult.Payload.userDatasetImportJobArn"
+              },
+              "ResultPath": "$.userJobDetails",
+              "Next": "IsUserJobActive"
+            },
+            "IsUserJobActive": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "Variable": "$.userJobDetails.DatasetImportJob.Status",
+                  "StringEquals": "ACTIVE",
+                  "Next": "UserJobSucceeded"
+                },
+                {
+                  "Variable": "$.userJobDetails.DatasetImportJob.Status",
+                  "StringEquals": "CREATE FAILED",
+                  "Next": "UserJobFailed"
+                }
+              ],
+              "Default": "WaitUser"
+            },
+            "WaitUser": {
+              "Type": "Wait",
+              "Seconds": 60,
+              "Next": "CheckUserJobStatus"
+            },
+            "UserJobSucceeded": {
+              "Type": "Succeed"
+            },
+            "UserJobFailed": {
+              "Type": "Fail",
+              "Cause": "User Import Job Failed"
+            }
+          }
+        }
+      ],
+      "ResultPath": null,
+      "Next": "solution_create",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "Next": "PersonalizeSetupFailed"
+        }
+      ]
+    },
+    "solution_create": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:ap-northeast-2:370519913328:function:solution-create",
+        "Payload": {
+          "datasetGroupArn.$": "$.PersonalizeResult.Payload.datasetGroupArn"
+        }
+      },
+      "ResultPath": "$.SolutionResult",
+      "Next": "Wait_For_Solution_Version_To_Complete"
+    },
+    "Wait_For_Solution_Version_To_Complete": {
+      "Type": "Wait",
+      "Seconds": 180,
+      "Next": "GetSolutionVersionStatus"
+    },
+    "GetSolutionVersionStatus": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:personalize:describeSolutionVersion",
+      "Parameters": {
+        "SolutionVersionArn.$": "$.SolutionResult.Payload.solutionVersionArn"
+      },
+      "ResultPath": "$.SolutionVersionDetails",
+      "Next": "IsSolutionVersionActive"
+    },
+    "IsSolutionVersionActive": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.SolutionVersionDetails.SolutionVersion.Status",
+          "StringEquals": "ACTIVE",
+          "Next": "batch_inference"
+        },
+        {
+          "Variable": "$.SolutionVersionDetails.SolutionVersion.Status",
+          "StringEquals": "CREATE FAILED",
+          "Next": "SolutionCreateFailed"
+        }
+      ],
+      "Default": "Wait_For_Solution_Version_To_Complete"
+    },
+    "batch_inference": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:ap-northeast-2:370519913328:function:batch-inference"
+      },
+      "ResultPath": "$.BatchInferenceResult",
+      "Next": "Wait_For_Batch_Inference_To_Complete"
+    },
+    "Wait_For_Batch_Inference_To_Complete": {
+      "Type": "Wait",
+      "Seconds": 60,
+      "Next": "GetBatchInferenceStatus"
+    },
+    "GetBatchInferenceStatus": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::aws-sdk:personalize:describeBatchInferenceJob",
+      "Parameters": {
+        "BatchInferenceJobArn.$": "$.BatchInferenceResult.Payload.batchInferenceJobArn"
+      },
+      "ResultPath": "$.BatchInferenceDetails",
+      "Next": "IsBatchInferenceActive"
+    },
+    "IsBatchInferenceActive": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.BatchInferenceDetails.BatchInferenceJob.Status",
+          "StringEquals": "ACTIVE",
+          "Next": "load_server_and_clean"
+        },
+        {
+          "Variable": "$.BatchInferenceDetails.BatchInferenceJob.Status",
+          "StringEquals": "FAILED",
+          "Next": "BatchInferenceFailed"
+        }
+      ],
+      "Default": "Wait_For_Batch_Inference_To_Complete"
+    },
+    "load_server_and_clean": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:ap-northeast-2:370519913328:function:load-server-clean-import",
+        "Payload": {
+          "s3OutputFile.$": "$.BatchInferenceDetails.BatchInferenceJob.JobOutput.S3DataDestination.Path"
+        }
+      },
+      "Next": "PipelineSucceeded"
+    },
+    "ETLFailed": {
+      "Type": "Fail",
+      "Cause": "The ETL Lambda function failed."
+    },
+    "PersonalizeSetupFailed": {
+      "Type": "Fail",
+      "Cause": "The Personalize setup or wait failed."
+    },
+    "SolutionCreateFailed": {
+      "Type": "Fail",
+      "Cause": "The Solution Create or wait failed."
+    },
+    "BatchInferenceFailed": {
+      "Type": "Fail",
+      "Cause": "The Batch Inference Job failed."
+    },
+    "PipelineSucceeded": {
+      "Type": "Succeed"
+    }
+  }
+}
