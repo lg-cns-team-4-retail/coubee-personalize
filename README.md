@@ -24,7 +24,7 @@ scripts/{files}.zip: 실행 코드 (Lambda 함수용)
 ## 1. 파이썬 의존성 패키지 준비 (python.zip)
 Lambda Layer로 사용할 파이썬 라이브러리들을 준비합니다. 아래 명령어는 Lambda 실행 환경(manylinux2014_x86_64)과 Python 3.11 버전에 맞는 바이너리 패키지들을 다운로드하여 ./python 폴더에 설치합니다.
 
-## 1. 패키지 설치
+### 1. 패키지 설치
 
 아래 bash 명령어를 터미널에서 실행하세요.
 ```
@@ -36,10 +36,10 @@ pip install -r requirements.txt --platform manylinux2014_x86_64 --implementation
 - 생성된 python 폴더에 common 디렉토리를 넣어줍니다.
 - 설치가 완료된 python 폴더를 python.zip 파일로 압축합니다.
 
-# 2. 실행 스크립트 준비 (scripts.zip)
+## 2. 실행 스크립트 준비 (scripts.zip)
 Lambda 함수가 실행할 메인 코드인 각 import 파일들을 zip파일로 압축 합니다.
 
-# 3. 최종 결과물
+## 3. 최종 결과물
 위 과정을 모두 마치면 프로젝트 루트 디렉토리에 다음과 같이 두 개의 배포용 zip 파일이 생성됩니다.
 ```
 python.zip
