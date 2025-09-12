@@ -7,6 +7,8 @@
 - **BatchInference**: 생성된 Solution과 추출한 `UserId`로 배치 추론을 생성할 수 있습니다.
 - **배치 추론된 아이템 ETL**: 배치 추론된 아이템을 추출(Extract)하여 변환(Transfer)해서 저장(Load)할 수 있습니다.
 
+# ETL 아키텍처 
+<img width="1371" height="741" alt="personalize다이어그램-페이지-13 drawio" src="https://github.com/user-attachments/assets/16ff90eb-e3be-4e02-8673-4da499d543db" />
 
 # 🛠️기술 스택
 | 구분 | 기술 | 설명 |
