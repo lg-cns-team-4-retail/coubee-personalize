@@ -1,11 +1,11 @@
 # 🚏주요 기능
-- **Extract**: 데이터베이스에서 `User_interaction 데이터`와 `User데이터`를 Extract할 수 있습니다.
-- **Transfer**: **Extract**한 데이터를 **Personalize스키마** 형식에 맞게 변환할 수 있습니다.
-- **Load**: 추출한 데이터셋을 **CSV형식**으로 **S3버킷**에 저장할 수 있습니다.
-- **DatasetImport**: Personalize훈련을 위한 데이터셋을 S3버킷에서 추출할 수 있습니다.
-- **SolutionCreate**: 생성된 데이터셋으로 개인화 딥러닝 솔루션을 생성할 수 있습니다.
-- **BatchInference**: 생성된 Solution과 추출한 `UserId`로 배치 추론을 생성할 수 있습니다.
-- **배치 추론된 아이템 ETL**: 배치 추론된 아이템을 추출(Extract)하여 변환(Transfer)해서 저장(Load)할 수 있습니다.
+- ### **Extract**: 데이터베이스에서 `User_interaction 데이터`와 `User데이터`를 Extract할 수 있습니다.
+- ### **Transfer**: **Extract**한 데이터를 **Personalize스키마** 형식에 맞게 변환할 수 있습니다.
+- ### **Load**: 추출한 데이터셋을 **CSV형식**으로 **S3버킷**에 저장할 수 있습니다.
+- ### **DatasetImport**: Personalize훈련을 위한 데이터셋을 S3버킷에서 추출할 수 있습니다.
+- ### **SolutionCreate**: 생성된 데이터셋으로 개인화 딥러닝 솔루션을 생성할 수 있습니다.
+- ### **BatchInference**: 생성된 Solution과 추출한 `UserId`로 배치 추론을 생성할 수 있습니다.
+- ### **배치 추론된 아이템 ETL**: 배치 추론된 아이템을 추출(Extract)하여 변환(Transfer)해서 저장(Load)할 수 있습니다.
 
 
 # 🛠️기술 스택
