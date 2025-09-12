@@ -1,4 +1,4 @@
-# 🛠️주요 기능
+# 🚏주요 기능
 - **Extract**: 데이터베이스에서 `User_interaction 데이터`와 `User데이터`를 Extract할 수 있습니다.
 - **Transfer**: **Extract**한 데이터를 **Personalize스키마** 형식에 맞게 변환할 수 있습니다.
 - **Load**: 추출한 데이터셋을 **CSV형식**으로 **S3버킷**에 저장할 수 있습니다.
